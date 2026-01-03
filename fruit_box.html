@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Box - Offline</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            user-select: none;
+        }
+
+        h1 {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .game-info {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 15px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .game-info span {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .game-container {
+            position: relative;
+            background: #8B4513;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .game-board {
+            display: grid;
+            gap: 5px;
+            background: #654321;
+            padding: 10px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .apple {
+            width: 45px;
+            height: 45px;
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #c0392b);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            position: relative;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .apple::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 10px;
+            background: #5d4e37;
+            border-radius: 2px;
+        }
+
+        .apple::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 55%;
+            width: 10px;
+            height: 8px;
+            background: #27ae60;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(45deg);
+        }
+
+        .apple.selected {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255,255,0,0.8);
+        }
+
+        .apple.removed {
+            animation: pop 0.3s ease-out forwards;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .cell.empty {
+            /* No background - invisible when apple is removed */
+        }
+
+        .selection-box {
+            position: fixed;
+            border: 3px dashed #FFD700;
+            background: rgba(255, 215, 0, 0.2);
+            pointer-events: none;
+            z-index: 1000;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .instructions {
+            color: white;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .overlay h2 {
+            color: white;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        .current-selection {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 18px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1001;
+        }
+
+        .current-selection.show {
+            opacity: 1;
+        }
+
+        /* Start Screen Styles */
+        .start-screen {
+            text-align: center;
+        }
+
+        .start-screen h2 {
+            font-size: 56px;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+        }
+
+        .start-screen .subtitle {
+            font-size: 20px;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+        .target-selector {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .target-selector label {
+            display: block;
+            color: white;
+            font-size: 22px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .target-display {
+            font-size: 72px;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .target-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .target-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            font-weight: bold;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 3px solid transparent;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .target-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .target-btn.selected {
+            background: #FFD700;
+            color: #333;
+            border-color: white;
+            transform: scale(1.15);
+        }
+
+        .start-btn {
+            font-size: 24px;
+            padding: 15px 50px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            border-radius: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .start-btn:hover {
+            transform: scale(1.08);
+        }
+
+        .quick-picks {
+            margin-top: 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            text-align: center;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-picks span {
+            cursor: pointer;
+            padding: 5px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            transition: background 0.2s;
+        }
+
+        .quick-picks span:hover {
+            background: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <h1>Fruit Box</h1>
+    <div class="game-info">
+        <span>Score: <strong id="score">0</strong></span>
+        <span>Target: <strong id="target-display">10</strong></span>
+        <span>Apples Left: <strong id="apples-left">0</strong></span>
+    </div>
+    <div class="controls">
+        <button onclick="showStartScreen()">New Game</button>
+        <button onclick="checkForMoves()">Check Moves</button>
+    </div>
+    <div class="game-container" id="game-container">
+        <div class="game-board" id="game-board"></div>
+    </div>
+    <div class="instructions" id="instructions">
+        Drag to select apples that sum to exactly 10. Get 1 point per apple!
+    </div>
+
+    <!-- Selection box (now in body for free positioning) -->
+    <div class="selection-box" id="selection-box"></div>
+
+    <div class="current-selection" id="current-selection">Sum: 0</div>
+
+    <!-- Start Screen -->
+    <div class="overlay show" id="start-screen">
+        <div class="start-screen">
+            <h2>Fruit Box</h2>
+            <p class="subtitle">Select apples that add up to your target number!</p>
+
+            <div class="target-selector">
+                <label>Choose your target sum:</label>
+                <div class="target-display" id="target-value">10</div>
+                <div class="target-buttons" id="target-buttons">
+                    <!-- Buttons generated by JS -->
+                </div>
+                <div class="quick-picks">
+                    Quick picks:
+                    <span onclick="setTarget(5)">Easy (5)</span>
+                    <span onclick="setTarget(10)">Classic (10)</span>
+                    <span onclick="setTarget(15)">Hard (15)</span>
+                    <span onclick="setTarget(20)">Expert (20)</span>
+                </div>
+            </div>
+
+            <button class="start-btn" onclick="startGame()">Start Game</button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="overlay" id="game-over">
+        <h2>Game Over!</h2>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <button onclick="showStartScreen()">Play Again</button>
+    </div>
+
+    <script>
+        const ROWS = 10;
+        const COLS = 17;
+
+        let board = [];
+        let score = 0;
+        let targetSum = 10;
+        let isSelecting = false;
+        let startX = 0;
+        let startY = 0;
+        let selectedCells = [];
+        let appleElements = []; // Store references to apple elements with their positions
+
+        const gameBoard = document.getElementById('game-board');
+        const gameContainer = document.getElementById('game-container');
+        const selectionBox = document.getElementById('selection-box');
+        const scoreDisplay = document.getElementById('score');
+        const targetDisplayGame = document.getElementById('target-display');
+        const applesLeftDisplay = document.getElementById('apples-left');
+        const currentSelectionDisplay = document.getElementById('current-selection');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const instructionsDisplay = document.getElementById('instructions');
+        const targetValueDisplay = document.getElementById('target-value');
+        const targetButtonsContainer = document.getElementById('target-buttons');
+
+        // Initialize target buttons
+        function initTargetButtons() {
+            targetButtonsContainer.innerHTML = '';
+            for (let i = 5; i <= 20; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'target-btn' + (i === 10 ? ' selected' : '');
+                btn.textContent = i;
+                btn.onclick = () => setTarget(i);
+                targetButtonsContainer.appendChild(btn);
+            }
+        }
+
+        function setTarget(value) {
+            targetSum = value;
+            targetValueDisplay.textContent = value;
+
+            // Update button selection
+            document.querySelectorAll('.target-btn').forEach(btn => {
+                btn.classList.toggle('selected', parseInt(btn.textContent) === value);
+            });
+        }
+
+        function showStartScreen() {
+            gameOverScreen.classList.remove('show');
+            startScreen.classList.add('show');
+        }
+
+        function startGame() {
+            startScreen.classList.remove('show');
+            targetDisplayGame.textContent = targetSum;
+            instructionsDisplay.textContent = `Drag to select apples that sum to exactly ${targetSum}. Get 1 point per apple!`;
+            newGame();
+        }
+
+        function generateBoard() {
+            board = [];
+            // Determine max apple value based on target
+            const maxValue = Math.min(9, targetSum - 1);
+
+            for (let r = 0; r < ROWS; r++) {
+                board[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    // Generate numbers 1 to maxValue
+                    const num = Math.floor(Math.random() * maxValue) + 1;
+                    board[r][c] = num;
+                }
+            }
+        }
+
+        function renderBoard() {
+            gameBoard.style.gridTemplateColumns = `repeat(${COLS}, 50px)`;
+            gameBoard.innerHTML = '';
+            appleElements = [];
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    if (board[r][c] !== null) {
+                        const apple = document.createElement('div');
+                        apple.className = 'apple';
+                        apple.textContent = board[r][c];
+                        apple.dataset.row = r;
+                        apple.dataset.col = c;
+                        apple.dataset.value = board[r][c];
+                        cell.appendChild(apple);
+                    } else {
+                        cell.classList.add('empty');
+                    }
+
+                    gameBoard.appendChild(cell);
+                }
+            }
+
+            // After rendering, cache apple positions
+            requestAnimationFrame(() => {
+                cacheApplePositions();
+            });
+
+            updateApplesLeft();
+        }
+
+        function cacheApplePositions() {
+            appleElements = [];
+            document.querySelectorAll('.apple').forEach(apple => {
+                const rect = apple.getBoundingClientRect();
+                appleElements.push({
+                    element: apple,
+                    row: parseInt(apple.dataset.row),
+                    col: parseInt(apple.dataset.col),
+                    value: parseInt(apple.dataset.value),
+                    centerX: rect.left + rect.width / 2,
+                    centerY: rect.top + rect.height / 2,
+                    rect: rect
+                });
+            });
+        }
+
+        function updateApplesLeft() {
+            let count = 0;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] !== null) count++;
+                }
+            }
+            applesLeftDisplay.textContent = count;
+            return count;
+        }
+
+        function getEnclosedApples(x1, y1, x2, y2) {
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+
+            const enclosed = [];
+
+            appleElements.forEach(apple => {
+                // Check if apple center is within the selection box
+                if (apple.centerX >= minX && apple.centerX <= maxX &&
+                    apple.centerY >= minY && apple.centerY <= maxY) {
+                    enclosed.push(apple);
+                }
+            });
+
+            return enclosed;
+        }
+
+        function updateSelectionBox(x1, y1, x2, y2) {
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+
+            selectionBox.style.left = `${minX}px`;
+            selectionBox.style.top = `${minY}px`;
+            selectionBox.style.width = `${maxX - minX}px`;
+            selectionBox.style.height = `${maxY - minY}px`;
+            selectionBox.style.display = 'block';
+        }
+
+        function highlightApples(apples) {
+            // Remove previous highlights
+            document.querySelectorAll('.apple.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            // Add new highlights
+            apples.forEach(apple => {
+                apple.element.classList.add('selected');
+            });
+        }
+
+        function calculateSum(apples) {
+            return apples.reduce((sum, apple) => sum + apple.value, 0);
+        }
+
+        function removeApples(apples) {
+            apples.forEach(apple => {
+                apple.element.classList.add('removed');
+                board[apple.row][apple.col] = null;
+            });
+
+            setTimeout(() => {
+                renderBoard();
+            }, 300);
+        }
+
+        function showFeedback(sum, valid, count) {
+            currentSelectionDisplay.textContent = valid ? `+${count} points!` : `Sum: ${sum} (need ${targetSum})`;
+            currentSelectionDisplay.className = 'current-selection show';
+
+            setTimeout(() => {
+                currentSelectionDisplay.classList.remove('show');
+            }, 1000);
+        }
+
+        function checkForMoves() {
+            // Re-cache positions in case of scroll/resize
+            cacheApplePositions();
+
+            // Check all possible rectangular selections
+            const apples = appleElements.slice();
+            const n = apples.length;
+
+            // Try all combinations of apples that could form a rectangle
+            for (let i = 0; i < n; i++) {
+                for (let j = i; j < n; j++) {
+                    // Define a rectangle from apple i to apple j bounds
+                    const minX = Math.min(apples[i].centerX, apples[j].centerX) - 1;
+                    const maxX = Math.max(apples[i].centerX, apples[j].centerX) + 1;
+                    const minY = Math.min(apples[i].centerY, apples[j].centerY) - 1;
+                    const maxY = Math.max(apples[i].centerY, apples[j].centerY) + 1;
+
+                    const enclosed = getEnclosedApples(minX, minY, maxX, maxY);
+                    if (enclosed.length > 0 && calculateSum(enclosed) === targetSum) {
+                        alert('There are still valid moves available!');
+                        return true;
+                    }
+                }
+            }
+
+            alert('No more valid moves. Game Over!');
+            endGame();
+            return false;
+        }
+
+        function endGame() {
+            finalScoreDisplay.textContent = score;
+            gameOverScreen.classList.add('show');
+        }
+
+        function newGame() {
+            score = 0;
+            scoreDisplay.textContent = score;
+            gameOverScreen.classList.remove('show');
+            generateBoard();
+            renderBoard();
+        }
+
+        // Mouse events - free drag anywhere
+        document.addEventListener('mousedown', (e) => {
+            // Don't start selection if clicking on buttons or overlays
+            if (e.target.closest('button') || e.target.closest('.overlay.show')) {
+                return;
+            }
+
+            e.preventDefault();
+            isSelecting = true;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            // Re-cache apple positions on each drag start (handles scroll/resize)
+            cacheApplePositions();
+
+            updateSelectionBox(startX, startY, startX, startY);
+            currentSelectionDisplay.textContent = 'Sum: 0';
+            currentSelectionDisplay.classList.add('show');
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isSelecting) return;
+
+            const currentX = e.clientX;
+            const currentY = e.clientY;
+
+            updateSelectionBox(startX, startY, currentX, currentY);
+
+            selectedCells = getEnclosedApples(startX, startY, currentX, currentY);
+            highlightApples(selectedCells);
+
+            const sum = calculateSum(selectedCells);
+            currentSelectionDisplay.textContent = `Sum: ${sum}`;
+            if (sum === targetSum) {
+                currentSelectionDisplay.style.color = '#2ecc71';
+            } else if (sum > targetSum) {
+                currentSelectionDisplay.style.color = '#e74c3c';
+            } else {
+                currentSelectionDisplay.style.color = 'white';
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!isSelecting) return;
+            isSelecting = false;
+
+            selectionBox.style.display = 'none';
+            document.querySelectorAll('.apple.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            if (selectedCells.length > 0) {
+                const sum = calculateSum(selectedCells);
+                if (sum === targetSum) {
+                    score += selectedCells.length;
+                    scoreDisplay.textContent = score;
+                    showFeedback(sum, true, selectedCells.length);
+                    removeApples(selectedCells);
+                } else {
+                    showFeedback(sum, false, selectedCells.length);
+                }
+            }
+
+            currentSelectionDisplay.style.color = 'white';
+            setTimeout(() => {
+                if (!isSelecting) {
+                    currentSelectionDisplay.classList.remove('show');
+                }
+            }, 1000);
+
+            selectedCells = [];
+        });
+
+        // Touch events for mobile - free drag
+        document.addEventListener('touchstart', (e) => {
+            // Don't start selection if touching buttons or overlays
+            if (e.target.closest('button') || e.target.closest('.overlay.show')) {
+                return;
+            }
+
+            e.preventDefault();
+            const touch = e.touches[0];
+            isSelecting = true;
+            startX = touch.clientX;
+            startY = touch.clientY;
+
+            // Re-cache apple positions
+            cacheApplePositions();
+
+            updateSelectionBox(startX, startY, startX, startY);
+            currentSelectionDisplay.textContent = 'Sum: 0';
+            currentSelectionDisplay.classList.add('show');
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isSelecting) return;
+            e.preventDefault();
+
+            const touch = e.touches[0];
+            const currentX = touch.clientX;
+            const currentY = touch.clientY;
+
+            updateSelectionBox(startX, startY, currentX, currentY);
+
+            selectedCells = getEnclosedApples(startX, startY, currentX, currentY);
+            highlightApples(selectedCells);
+
+            const sum = calculateSum(selectedCells);
+            currentSelectionDisplay.textContent = `Sum: ${sum}`;
+            if (sum === targetSum) {
+                currentSelectionDisplay.style.color = '#2ecc71';
+            } else if (sum > targetSum) {
+                currentSelectionDisplay.style.color = '#e74c3c';
+            } else {
+                currentSelectionDisplay.style.color = 'white';
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (!isSelecting) return;
+            isSelecting = false;
+
+            selectionBox.style.display = 'none';
+            document.querySelectorAll('.apple.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            if (selectedCells.length > 0) {
+                const sum = calculateSum(selectedCells);
+                if (sum === targetSum) {
+                    score += selectedCells.length;
+                    scoreDisplay.textContent = score;
+                    showFeedback(sum, true, selectedCells.length);
+                    removeApples(selectedCells);
+                } else {
+                    showFeedback(sum, false, selectedCells.length);
+                }
+            }
+
+            currentSelectionDisplay.style.color = 'white';
+            setTimeout(() => {
+                if (!isSelecting) {
+                    currentSelectionDisplay.classList.remove('show');
+                }
+            }, 1000);
+
+            selectedCells = [];
+        });
+
+        // Handle window resize - update cached positions
+        window.addEventListener('resize', () => {
+            if (appleElements.length > 0) {
+                cacheApplePositions();
+            }
+        });
+
+        // Handle scroll - update cached positions
+        window.addEventListener('scroll', () => {
+            if (appleElements.length > 0) {
+                cacheApplePositions();
+            }
+        });
+
+        // Initialize
+        initTargetButtons();
+    </script>
+</body>
+</html>
